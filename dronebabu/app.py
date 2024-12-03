@@ -1,17 +1,17 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import numpy as np
-import joblib
-import logging  # Replacing ctypes with logging for message output
-
-# Set up basic logging configuration
-logging.basicConfig(level=logging.INFO)
+import pickle
+import os
 
 app = FastAPI()
 
 # Load the pre-trained KNN model
-model = joblib.load('knn_model.pkl')
+model_path = os.path.join(os.getcwd(), "knn_model.pkl")
+with open(model_path, "rb") as f:
+    model = pickle.load(f)
 
+# Define the input schema
 class CropInput(BaseModel):
     Carbon: float
     Organic_Matter: float
@@ -24,24 +24,16 @@ class CropInput(BaseModel):
 async def predict_crop(input: CropInput):
     try:
         # Prepare the feature array for prediction
-        features = np.array([[input.Carbon, input.Organic_Matter, input.Phosphorous, 
-                              input.Calcium, input.Magnesium, input.Potassium]])
-
-        # Make a prediction using the pre-trained KNN model
+        features = np.array([[input.Carbon, input.Organic_Matter, input.Phosphorous,
+                               input.Calcium, input.Magnesium, input.Potassium]])
+        # Make a prediction
         predicted_crop = model.predict(features)[0]
 
         # Map the prediction to crop names
-        if predicted_crop == 1:
-            crop_name = "Soybean"
-        else:
-            crop_name = "Paddy"
+        crop_name = "Soybean" if predicted_crop == 1 else "Paddy"
 
-        # OPTIONAL: Use logging to output the predicted crop
-        logging.info(f"Predicted crop: {crop_name}")
-
-        # Return the crop name as a string in the response
+        # Return the prediction
         return {"predicted_crop": crop_name}
 
     except Exception as e:
-        logging.error(f"Error during prediction: {str(e)}")
         return {"error": str(e)}
